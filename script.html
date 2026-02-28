@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HAB Flight Planner — Mission Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07080f;
+    --bg2: #0d1020;
+    --bg3: #111728;
+    --amber: #f5a623;
+    --amber-dim: #a06b0f;
+    --cyan: #00d4ff;
+    --cyan-dim: #0088aa;
+    --green: #39ff14;
+    --red: #ff3b3b;
+    --text: #c8d8e8;
+    --text-dim: #5a7080;
+    --border: #1e2d45;
+    --border-bright: #2a4060;
+    --glow-amber: 0 0 8px #f5a62366, 0 0 20px #f5a62322;
+    --glow-cyan: 0 0 8px #00d4ff44, 0 0 20px #00d4ff22;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, #0d1f3a 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, #1a0d2e 0%, transparent 50%);
+  }
+
+  /* Hex grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpolygon points='30,2 58,17 58,47 30,52 2,47 2,17' fill='none' stroke='%23ffffff06' stroke-width='1'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1600px; margin: 0 auto; padding: 0 16px 40px; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 22px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .logo-mark {
+    width: 46px; height: 46px;
+    border: 2px solid var(--amber);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: var(--glow-amber);
+    flex-shrink: 0;
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: var(--glow-amber); }
+    50% { box-shadow: 0 0 16px #f5a62399, 0 0 40px #f5a62344; }
+  }
+  header h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(18px, 3vw, 28px);
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  header h1 span { color: var(--amber); }
+  .header-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 2s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  /* ── Main Grid ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-header {
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-header h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  .panel-icon { color: var(--cyan); font-size: 14px; }
+  .panel-body { padding: 16px; }
+
+  /* ── Form Elements ── */
+  .field-group { margin-bottom: 14px; }
+  .field-group:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus {
+    border-color: var(--cyan-dim);
+    box-shadow: 0 0 0 2px #00d4ff18;
+  }
+  select { cursor: pointer; }
+  select option { background: #0d1020; }
+
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .derived-field input {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+  }
+  .derived-field label::after { content: ' ↳ auto'; color: var(--amber-dim); font-size: 9px; }
+
+  /* ── Section Divider ── */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0 12px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Launch Button ── */
+  .btn-launch {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    background: transparent;
+    border: 2px solid var(--amber);
+    color: var(--amber);
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-launch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--amber);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 0;
+  }
+  .btn-launch:hover::before { transform: translateX(0); }
+  .btn-launch:hover { color: #000; box-shadow: var(--glow-amber); }
+  .btn-launch span { position: relative; z-index: 1; }
+  .btn-launch:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-launch:disabled::before { display: none; }
+
+  /* ── Right Column ── */
+  .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Map Iframe ── */
+  .map-wrap {
+    position: relative;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 480px;
+  }
+  .map-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    background: var(--bg2);
+  }
+  .map-placeholder .big-icon { font-size: 48px; opacity: 0.3; }
+  .map-placeholder p { max-width: 260px; text-align: center; line-height: 1.6; }
+  .map-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: 1px solid var(--cyan-dim);
+    color: var(--cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    text-decoration: none;
+    border-radius: 3px;
+    transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .map-link-btn:hover { background: #00d4ff18; box-shadow: var(--glow-cyan); }
+  #map-iframe { width: 100%; height: 100%; border: none; display: none; }
+  .map-header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+  .map-header h2 {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+  }
+  .map-content { position: absolute; top: 37px; bottom: 0; left: 0; right: 0; }
+
+  /* ── Results Row ── */
+  .results-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* ── Landing Card ── */
+  .landing-coords {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .coord-display {
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    padding: 12px 14px;
+  }
+  .coord-display .coord-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .coord-display .coord-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    color: var(--amber);
+    letter-spacing: 1px;
+  }
+  .coord-display .coord-val.empty { color: var(--text-dim); font-size: 14px; }
+  .flight-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 12px;
+  }
+  .stat-box .s-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+  }
+  .stat-box .s-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--cyan);
+    margin-top: 2px;
+  }
+  .directions-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .directions-box .d-title {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .dir-step { display: flex; gap: 8px; align-items: flex-start; }
+  .dir-arrow { color: var(--amber); flex-shrink: 0; }
+
+  /* ── Weather Panel ── */
+  .weather-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .wx-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px;
+  }
+  .wx-card .wx-icon { font-size: 28px; margin-bottom: 8px; }
+  .wx-card .wx-title {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .wx-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+  }
+  .wx-val .unit { font-size: 12px; color: var(--text-dim); font-weight: normal; margin-left: 4px; }
+  .wx-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .cloud-bars { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .cloud-bar-row { display: flex; align-items: center; gap: 8px; }
+  .cloud-bar-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text-dim); width: 30px; }
+  .cloud-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .cloud-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+    border-radius: 3px;
+    transition: width 0.8s ease;
+  }
+  .cloud-bar-pct { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--cyan); width: 32px; text-align: right; }
+
+  .wind-levels { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .wind-level-row { display: flex; align-items: center; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+  .wind-level-alt { color: var(--text-dim); }
+  .wind-level-spd { color: var(--amber); }
+  .wind-level-dir { color: var(--text-dim); font-size: 10px; }
+
+  /* ── Loading Spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error / Info Badges ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+  .badge-warn { background: #f5a62322; border: 1px solid var(--amber-dim); color: var(--amber); }
+  .badge-info { background: #00d4ff14; border: 1px solid var(--cyan-dim); color: var(--cyan); }
+  .badge-err { background: #ff3b3b22; border: 1px solid #ff3b3b88; color: var(--red); }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  /* ── Scan line effect on hover ── */
+  .map-wrap::after {
+    content: '';
+    position: absolute;
+    top: 37px; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.04) 2px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .corner-decoration {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: var(--amber);
+    border-style: solid;
+  }
+  .corner-tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+  .corner-tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+  .corner-bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+  .corner-br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+  /* small "live" tag */
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    letter-spacing: 1px;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.5s step-end infinite;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .results-row { grid-template-columns: 1fr; }
+    .weather-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-mark">🎈</div>
+    <div>
+      <h1>HAB <span>Planner</span></h1>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:3px;">HIGH ALTITUDE BALLOON — MISSION CONTROL</div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      SYSTEMS NOMINAL
+    </div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- ── LEFT: Inputs Panel ── -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-icon">⬡</span>
+          <h2>Flight Configuration</h2>
+        </div>
+        <div class="panel-body">
+
+          <!-- Balloon Preset -->
+          <div class="field-group">
+            <label>Balloon Preset</label>
+            <select id="balloon-preset" onchange="applyBalloonPreset(this.value)">
+              <option value="">— Select Balloon —</option>
+              <option value="600g" selected>600g Balloon</option>
+            </select>
+          </div>
+
+          <!-- Location Preset -->
+          <div class="field-group">
+            <label>Launch Location</label>
+            <select id="location-preset" onchange="applyLocationPreset(this.value)">
+              <option value="">— Custom Location —</option>
+              <option value="toland" selected>Toland Park</option>
+            </select>
+          </div>
+
+          <div class="section-divider">Launch Site</div>
+
+          <div class="row-2">
+            <div class="field-group">
+              <label>Latitude (°N)</label>
+              <input type="number" id="lat" value="34.393725" step="0.000001" min="-90" max="90">
+            </div>
+            <div class="field-group">
+              <label>Longitude (°E)</label>
+              <input type="number" id="lon" value="-118.99965" step="0.000001" min="-180" max="180">
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label>Launch Altitude (m)</label>
+            <input type="number" id="launch-alt" value="259" step="1">
+          </div>
+
+          <div class="section-divider">Payload & Timing</div>
+
+          <div class="field-group">
+            <label>Payload Mass (g)</label>
+            <input type="number" id="payload-mass" value="3017" step="1" min="100"
+              oninput="estimateAscentRate()">
+          </div>
+
+          <div class="row-2">
+            <div class="field-group">
+              <label>Launch Date (PST)</label>
+              <input type="date" id="launch-date">
+            </div>
+            <div class="field-group">
+              <label>Launch Time (PST)</label>
+              <input type="time" id="launch-time" value="08:00" oninput="updateUtcDisplay()">
+            </div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:8px 12px;margin-top:-6px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;">UTC Equivalent</span>
+            <span id="utc-display" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);">—</span>
+          </div>
+
+          <div class="section-divider">Flight Parameters</div>
+
+          <div class="row-2">
+            <div class="field-group derived-field">
+              <label>Ascent Rate (m/s)</label>
+              <input type="number" id="ascent-rate" value="2.76" step="0.01" min="1" max="10">
+            </div>
+            <div class="field-group derived-field">
+              <label>Burst Altitude (m)</label>
+              <input type="number" id="burst-alt" value="24384" step="10">
+            </div>
+          </div>
+
+          <div class="field-group derived-field">
+            <label>Descent Rate (m/s)</label>
+            <input type="number" id="descent-rate" value="6.44" step="0.01" min="1" max="20">
+          </div>
+
+          <button class="btn-launch" id="run-btn" onclick="runPrediction()">
+            <span>▶ Run Prediction</span>
+          </button>
+
+          <div id="run-status" style="margin-top:12px;min-height:20px;font-family:'Share Tech Mono',monospace;font-size:11px;"></div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-icon">◈</span>
+          <h2>Balloon Specs</h2>
+        </div>
+        <div class="panel-body" id="balloon-specs">
+          <div style="color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;line-height:1.8;">
+            Select a balloon preset to see specs.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── RIGHT Column ── -->
+    <div class="right-col">
+
+      <!-- Trajectory Map -->
+      <div class="map-wrap" id="map-wrap">
+        <div class="map-header">
+          <h2>⬡ Trajectory Prediction — SondeHub</h2>
+          <div class="live-badge" id="map-live-badge" style="display:none;">
+            <div class="live-dot"></div> LIVE DATA
+          </div>
+          <a id="sondehub-link" href="#" target="_blank" style="display:none;" class="map-link-btn">↗ Open Full Map</a>
+        </div>
+        <div class="map-content">
+          <div class="map-placeholder" id="map-placeholder">
+            <div class="corner-decoration corner-tl"></div>
+            <div class="corner-decoration corner-tr"></div>
+            <div class="corner-decoration corner-bl"></div>
+            <div class="corner-decoration corner-br"></div>
+            <div class="big-icon">🗺</div>
+            <p>Configure flight parameters and press <strong style="color:var(--amber)">Run Prediction</strong> to generate trajectory.</p>
+          </div>
+          <iframe id="map-iframe" src="" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <!-- Results Row -->
+      <div class="results-row">
+
+        <!-- Landing Coordinates -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-icon">◎</span>
+            <h2>Landing Zone</h2>
+          </div>
+          <div class="panel-body">
+            <div class="landing-coords" id="landing-content">
+              <div class="empty-state">Run prediction to<br>compute landing zone.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Directions -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-icon">◈</span>
+            <h2>Recovery Directions</h2>
+          </div>
+          <div class="panel-body">
+            <div id="directions-content">
+              <div class="empty-state">Directions will appear<br>after prediction runs.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Weather Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-icon">☁</span>
+          <h2>Atmospheric Conditions — Launch Site</h2>
+        </div>
+        <div class="panel-body">
+          <div id="weather-content">
+            <div class="empty-state">Weather will load after prediction runs.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Presets ──────────────────────────────────────────
+const BALLOON_PRESETS = {
+  '600g': {
+    burstAltitude: 24384,   // ~80,000 ft in meters
+    ascentRate: 2.76,
+    descentRate: 6.44,
+    balloonMass: 600,
+    burstDiameter: 7.87,    // m (approximate Hwoyee 600g)
+    label: '600g Latex Balloon',
+    gas: 'Helium',
+    refPayload: 3017        // reference payload for ascent rate
+  }
+};
+
+const LOCATION_PRESETS = {
+  toland: {
+    name: 'Toland Park',
+    lat: 34.393725,
+    lon: -118.99965,
+    altitude: 259
+  }
+};
+
+// ── Init ──────────────────────────────────────────────
+// PST/PDT conversion helpers
+function getPstOffsetHours(dateStr, timeStr) {
+  const year = new Date(`${dateStr}T${timeStr}:00`).getFullYear();
+  const testDate = new Date(`${dateStr}T${timeStr}:00`);
+  const dstStart = getNthSunday(year, 2, 2);
+  const dstEnd = getNthSunday(year, 10, 1);
+  return (testDate >= dstStart && testDate < dstEnd) ? 7 : 8;
+}
+
+function getNthSunday(year, month, n) {
+  const d = new Date(year, month, 1);
+  d.setDate(1 + ((7 - d.getDay()) % 7));
+  d.setDate(d.getDate() + (n - 1) * 7);
+  return d;
+}
+
+function pstToUtcISO(dateStr, timeStr) {
+  const offsetHrs = getPstOffsetHours(dateStr, timeStr);
+  const [h, m] = timeStr.split(':').map(Number);
+  const local = new Date(`${dateStr}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+  const utc = new Date(local.getTime() + offsetHrs * 3600000);
+  return utc.toISOString().replace('.000Z', 'Z');
+}
+
+function updateUtcDisplay() {
+  const dateStr = document.getElementById('launch-date').value;
+  const timeStr = document.getElementById('launch-time').value;
+  const el = document.getElementById('utc-display');
+  if (!dateStr || !timeStr) { el.textContent = '—'; return; }
+  const offsetHrs = getPstOffsetHours(dateStr, timeStr);
+  const tzLabel = offsetHrs === 7 ? 'PDT' : 'PST';
+  const iso = pstToUtcISO(dateStr, timeStr);
+  const utcDate = new Date(iso);
+  const hh = String(utcDate.getUTCHours()).padStart(2,'0');
+  const mm = String(utcDate.getUTCMinutes()).padStart(2,'0');
+  const dateDisplay = utcDate.toISOString().slice(0,10);
+  el.textContent = `${dateDisplay} ${hh}:${mm} UTC  (${tzLabel} + ${offsetHrs}h)`;
+}
+
+window.addEventListener('load', () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('launch-date').value = tomorrow.toISOString().split('T')[0];
+  document.getElementById('launch-date').addEventListener('change', updateUtcDisplay);
+  document.getElementById('launch-time').addEventListener('change', updateUtcDisplay);
+
+  applyBalloonPreset('600g');
+  applyLocationPreset('toland');
+  updateUtcDisplay();
+});
+
+function applyBalloonPreset(key) {
+  if (!key || !BALLOON_PRESETS[key]) return;
+  const p = BALLOON_PRESETS[key];
+  document.getElementById('burst-alt').value = p.burstAltitude;
+  document.getElementById('ascent-rate').value = p.ascentRate;
+  document.getElementById('descent-rate').value = p.descentRate;
+  renderBalloonSpecs(p);
+  estimateAscentRate();
+}
+
+function applyLocationPreset(key) {
+  if (!key || !LOCATION_PRESETS[key]) return;
+  const p = LOCATION_PRESETS[key];
+  document.getElementById('lat').value = p.lat;
+  document.getElementById('lon').value = p.lon;
+  document.getElementById('launch-alt').value = p.altitude;
+}
+
+function renderBalloonSpecs(p) {
+  document.getElementById('balloon-specs').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      ${specRow('Type', p.label)}
+      ${specRow('Gas', p.gas)}
+      ${specRow('Balloon Mass', p.balloonMass + ' g')}
+      ${specRow('Burst Alt', (p.burstAltitude / 0.3048).toFixed(0) + ' ft')}
+      ${specRow('Burst Alt', p.burstAltitude.toLocaleString() + ' m')}
+      ${specRow('Ref Payload', p.refPayload + ' g')}
+    </div>
+  `;
+}
+
+function specRow(label, val) {
+  return `<div class="stat-box"><div class="s-label">${label}</div><div class="s-val" style="font-size:13px;color:var(--text);">${val}</div></div>`;
+}
+
+function estimateAscentRate() {
+  const balloonKey = document.getElementById('balloon-preset').value;
+  if (!balloonKey || !BALLOON_PRESETS[balloonKey]) return;
+  const p = BALLOON_PRESETS[balloonKey];
+  const mass = parseFloat(document.getElementById('payload-mass').value) || p.refPayload;
+  // Linear approximation around reference point
+  // For every 100g increase in payload, ascent rate drops ~0.09 m/s
+  const delta = (mass - p.refPayload) * (-0.0009);
+  const rate = Math.max(1.5, Math.min(8, p.ascentRate + delta));
+  document.getElementById('ascent-rate').value = rate.toFixed(2);
+}
+
+// ── Prediction Runner ─────────────────────────────────
+async function runPrediction() {
+  const lat = parseFloat(document.getElementById('lat').value);
+  const lon = parseFloat(document.getElementById('lon').value);
+  const launchAlt = parseFloat(document.getElementById('launch-alt').value);
+  const ascentRate = parseFloat(document.getElementById('ascent-rate').value);
+  const burstAlt = parseFloat(document.getElementById('burst-alt').value);
+  const descentRate = parseFloat(document.getElementById('descent-rate').value);
+  const dateStr = document.getElementById('launch-date').value;
+  const timeStr = document.getElementById('launch-time').value;
+
+  if (!dateStr || !timeStr || isNaN(lat) || isNaN(lon)) {
+    setStatus('<span class="badge badge-warn">⚠ Please fill all required fields</span>');
+    return;
+  }
+
+  const launchISO = pstToUtcISO(dateStr, timeStr);
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  setStatus('<span class="spinner"></span> Fetching trajectory…');
+
+  // Build SondeHub URL (longitude in 0-360)
+  const lonSondehub = lon < 0 ? lon + 360 : lon;
+  const sondehubUrl = `https://predict.sondehub.org/?launch_datetime=${encodeURIComponent(launchISO)}&launch_latitude=${lat}&launch_longitude=${lonSondehub}&launch_altitude=${launchAlt}&ascent_rate=${ascentRate}&profile=standard_profile&prediction_type=single&burst_altitude=${burstAlt}&descent_rate=${descentRate}`;
+
+  // Show map
+  loadMap(sondehubUrl);
+
+  // Call Tawhiri API for landing coords
+  let landing = null;
+  try {
+    landing = await fetchTawhiriPrediction(lat, lon, launchAlt, ascentRate, burstAlt, descentRate, launchISO);
+  } catch (e) {
+    console.warn('Tawhiri error:', e);
+  }
+
+  // Fetch weather
+  setStatus('<span class="spinner"></span> Loading weather…');
+  try {
+    await fetchWeather(lat, lon, launchISO);
+  } catch(e) {
+    console.warn('Weather error:', e);
+  }
+
+  if (landing) {
+    renderLanding(landing, lat, lon);
+    setStatus('<span class="badge badge-info">✓ Prediction complete</span>');
+  } else {
+    setStatus('<span class="badge badge-warn">⚠ Tawhiri API unavailable — use SondeHub map for trajectory</span>');
+    document.getElementById('landing-content').innerHTML = `
+      <div class="empty-state">
+        Could not fetch landing coords automatically.<br>
+        <a href="${sondehubUrl}" target="_blank" class="map-link-btn" style="margin-top:10px;display:inline-flex;">↗ View on SondeHub</a>
+      </div>`;
+  }
+
+  btn.disabled = false;
+}
+
+function setStatus(html) {
+  document.getElementById('run-status').innerHTML = html;
+}
+
+// ── Load SondeHub iframe ──────────────────────────────
+function loadMap(url) {
+  document.getElementById('map-placeholder').style.display = 'none';
+  const iframe = document.getElementById('map-iframe');
+  iframe.src = url;
+  iframe.style.display = 'block';
+  document.getElementById('map-live-badge').style.display = 'inline-flex';
+  const linkEl = document.getElementById('sondehub-link');
+  linkEl.href = url;
+  linkEl.style.display = 'inline-flex';
+}
+
+// ── Tawhiri API ───────────────────────────────────────
+async function fetchTawhiriPrediction(lat, lon, launchAlt, ascentRate, burstAlt, descentRate, launchISO) {
+  const params = new URLSearchParams({
+    launch_datetime: launchISO,
+    launch_latitude: lat,
+    launch_longitude: lon,
+    launch_altitude: launchAlt,
+    ascent_rate: ascentRate,
+    burst_altitude: burstAlt,
+    descent_rate: descentRate,
+    profile: 'standard_profile'
+  });
+  const res = await fetch(`https://api.v2.sondehub.org/tawhiri?${params}`);
+  if (!res.ok) throw new Error('Tawhiri response ' + res.status);
+  const data = await res.json();
+  // Find last point of last stage (landing)
+  const stages = data.prediction;
+  const lastStage = stages[stages.length - 1];
+  const traj = lastStage.trajectory;
+  const landPt = traj[traj.length - 1];
+
+  // Also get burst point (top of ascent)
+  const ascentStage = stages.find(s => s.stage === 'ascent');
+  const burstPt = ascentStage ? ascentStage.trajectory[ascentStage.trajectory.length - 1] : null;
+
+  // Flight duration
+  const startTime = new Date(stages[0].trajectory[0].time * 1000);
+  const endTime = new Date(landPt.time * 1000);
+  const durationMin = Math.round((endTime - startTime) / 60000);
+
+  return {
+    lat: landPt.latitude,
+    lon: landPt.longitude,
+    alt: landPt.altitude,
+    burstLat: burstPt?.latitude,
+    burstLon: burstPt?.longitude,
+    burstAlt: burstPt?.altitude,
+    durationMin,
+    startTime: startTime.toUTCString()
+  };
+}
+
+// ── Render Landing ────────────────────────────────────
+function renderLanding(landing, launchLat, launchLon) {
+  const distKm = haversineKm(launchLat, launchLon, landing.lat, landing.lon);
+  const bearingDeg = bearing(launchLat, launchLon, landing.lat, landing.lon);
+  const compassDir = degToCompass(bearingDeg);
+
+  const googleMapsUrl = `https://www.google.com/maps?q=${landing.lat.toFixed(6)},${landing.lon.toFixed(6)}`;
+  const durationHrs = Math.floor(landing.durationMin / 60);
+  const durationMins = landing.durationMin % 60;
+
+  document.getElementById('landing-content').innerHTML = `
+    <div class="coord-display">
+      <div class="coord-label">Landing Latitude</div>
+      <div class="coord-val">${landing.lat.toFixed(5)}° N</div>
+    </div>
+    <div class="coord-display">
+      <div class="coord-label">Landing Longitude</div>
+      <div class="coord-val">${landing.lon.toFixed(5)}° E</div>
+    </div>
+    <div class="flight-stats">
+      <div class="stat-box">
+        <div class="s-label">Distance</div>
+        <div class="s-val">${distKm.toFixed(1)} km</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">Bearing</div>
+        <div class="s-val">${compassDir} ${bearingDeg.toFixed(0)}°</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">Flight Time</div>
+        <div class="s-val">${durationHrs > 0 ? durationHrs + 'h ' : ''}${durationMins}m</div>
+      </div>
+      <div class="stat-box">
+        <div class="s-label">Landing Alt</div>
+        <div class="s-val">${landing.alt.toFixed(0)} m</div>
+      </div>
+    </div>
+    <a href="${googleMapsUrl}" target="_blank" class="map-link-btn" style="width:100%;justify-content:center;">
+      📍 Open Landing in Google Maps
+    </a>
+  `;
+
+  // Directions
+  renderDirections(landing, launchLat, launchLon, distKm, bearingDeg, compassDir);
+}
+
+function renderDirections(landing, launchLat, launchLon, distKm, bearingDeg, compassDir) {
+  const drivingUrl = `https://www.google.com/maps/dir/?api=1&origin=${launchLat},${launchLon}&destination=${landing.lat.toFixed(5)},${landing.lon.toFixed(5)}&travelmode=driving`;
+
+  document.getElementById('directions-content').innerHTML = `
+    <div class="directions-box">
+      <div class="d-title">Recovery Route Summary</div>
+      <div class="dir-step"><span class="dir-arrow">▶</span><span>From launch, travel <strong style="color:var(--amber)">${compassDir}</strong> (${bearingDeg.toFixed(0)}°)</span></div>
+      <div class="dir-step"><span class="dir-arrow">▶</span><span>Straight-line distance: <strong style="color:var(--amber)">${distKm.toFixed(1)} km</strong> (${(distKm * 0.621371).toFixed(1)} mi)</span></div>
+      <div class="dir-step"><span class="dir-arrow">▶</span><span>Target: <strong style="color:var(--cyan)">${landing.lat.toFixed(5)}°, ${landing.lon.toFixed(5)}°</strong></span></div>
+    </div>
+    <a href="${drivingUrl}" target="_blank" class="map-link-btn" style="width:100%;justify-content:center;margin-top:10px;">
+      🚗 Get Driving Directions
+    </a>
+  `;
+}
+
+// ── Weather ───────────────────────────────────────────
+async function fetchWeather(lat, lon, launchISO) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&hourly=windspeed_10m,winddirection_10m,windspeed_500hPa,winddirection_500hPa,windspeed_300hPa,winddirection_300hPa,windspeed_200hPa,windspeed_100hPa,windspeed_50hPa,cloudcover_low,cloudcover_mid,cloudcover_high,precipitation,weathercode` +
+    `&forecast_days=7&wind_speed_unit=mph&timezone=UTC`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Weather API error');
+  const data = await res.json();
+  renderWeather(data, launchISO);
+}
+
+function renderWeather(data, launchISO) {
+  const h = data.hourly;
+  // Find the hour index closest to launch time
+  const launchDate = new Date(launchISO);
+  const times = h.time.map(t => new Date(t + 'Z'));
+  let idx = 0;
+  let minDiff = Infinity;
+  times.forEach((t, i) => {
+    const diff = Math.abs(t - launchDate);
+    if (diff < minDiff) { minDiff = diff; idx = i; }
+  });
+
+  const windSpd10 = (h.windspeed_10m[idx] || 0).toFixed(1);
+  const windDir10 = h.winddirection_10m[idx] || 0;
+  const wind500 = (h.windspeed_500hPa[idx] || 0).toFixed(1);
+  const wind300 = (h.windspeed_300hPa[idx] || 0).toFixed(1);
+  const wind200 = (h.windspeed_200hPa[idx] || 0).toFixed(1);
+  const wind100 = (h.windspeed_100hPa[idx] || 0).toFixed(1);
+  const wind50 = (h.windspeed_50hPa[idx] || 0).toFixed(1);
+  const cloudLow = h.cloudcover_low[idx] || 0;
+  const cloudMid = h.cloudcover_mid[idx] || 0;
+  const cloudHigh = h.cloudcover_high[idx] || 0;
+  const precip = (h.precipitation[idx] || 0).toFixed(1);
+  const weatherCode = h.weathercode[idx] || 0;
+  const windDir10Label = degToCompass(windDir10);
+
+  const launchTimeStr = times[idx].toUTCString().slice(0, 22);
+
+  document.getElementById('weather-content').innerHTML = `
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:12px;">
+      Conditions at launch time: <span style="color:var(--cyan)">${launchTimeStr} UTC</span>
+    </div>
+    <div class="weather-grid">
+
+      <!-- Wind Surface -->
+      <div class="wx-card">
+        <div class="wx-icon">💨</div>
+        <div class="wx-title">Surface Wind</div>
+        <div class="wx-val">${windSpd10}<span class="unit">mph</span></div>
+        <div class="wx-sub">Direction: ${windDir10Label} (${windDir10.toFixed(0)}°)</div>
+        <div class="wind-levels" style="margin-top:10px;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:4px;">UPPER LEVEL WINDS</div>
+          ${windLevelRow('~5.5km', wind500, h.winddirection_500hPa?.[idx] || 0)}
+          ${windLevelRow('~9km', wind300, h.winddirection_300hPa?.[idx] || 0)}
+          ${windLevelRow('~11km', wind200, h.winddirection_200hPa?.[idx] || 0)}
+          ${windLevelRow('~16km', wind100, 0)}
+          ${windLevelRow('~20km', wind50, 0)}
+        </div>
+      </div>
+
+      <!-- Cloud Cover -->
+      <div class="wx-card">
+        <div class="wx-icon">☁️</div>
+        <div class="wx-title">Cloud Cover</div>
+        <div class="wx-val">${Math.round(Math.max(cloudLow, cloudMid, cloudHigh))}<span class="unit">% max</span></div>
+        <div class="cloud-bars" style="margin-top:10px;">
+          ${cloudBar('Low', cloudLow, '0–3km')}
+          ${cloudBar('Mid', cloudMid, '3–7km')}
+          ${cloudBar('High', cloudHigh, '7km+')}
+        </div>
+      </div>
+
+      <!-- Precipitation -->
+      <div class="wx-card">
+        <div class="wx-icon">${precip > 0 ? '🌧' : '🌤'}</div>
+        <div class="wx-title">Precipitation</div>
+        <div class="wx-val">${precip}<span class="unit">mm</span></div>
+        <div class="wx-sub" style="margin-top:8px;">${wxCodeLabel(weatherCode)}</div>
+        <div class="wx-sub" style="margin-top:8px;">
+          ${precip == 0 ? '<span style="color:var(--green)">✓ No precipitation expected</span>' : '<span style="color:var(--amber)">⚠ Precipitation at launch time</span>'}
+        </div>
+      </div>
+
+    </div>
+  `;
+}
+
+function windLevelRow(alt, spd, dir) {
+  return `<div class="wind-level-row">
+    <span class="wind-level-alt">${alt}</span>
+    <span class="wind-level-spd">${spd} mph</span>
+    <span class="wind-level-dir">${dir > 0 ? degToCompass(dir) : '—'}</span>
+  </div>`;
+}
+
+function cloudBar(label, pct, altRange) {
+  const pctNum = Math.round(pct);
+  let color;
+  if (pctNum < 20) color = '#39ff1488';
+  else if (pctNum < 60) color = '#f5a62388';
+  else color = '#ff3b3b88';
+
+  return `<div class="cloud-bar-row">
+    <span class="cloud-bar-label">${label}</span>
+    <div class="cloud-bar-track">
+      <div class="cloud-bar-fill" style="width:${pctNum}%;background:${color};"></div>
+    </div>
+    <span class="cloud-bar-pct">${pctNum}%</span>
+  </div>`;
+}
+
+// ── Utility: Haversine ────────────────────────────────
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function bearing(lat1, lon1, lat2, lon2) {
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function degToCompass(deg) {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function wxCodeLabel(code) {
+  if (code === 0) return 'Clear sky';
+  if (code <= 3) return 'Partly cloudy';
+  if (code <= 12) return 'Mist / fog';
+  if (code <= 29) return 'Light drizzle';
+  if (code <= 39) return 'Drizzle';
+  if (code <= 49) return 'Freezing drizzle';
+  if (code <= 59) return 'Rain showers';
+  if (code <= 69) return 'Snow showers';
+  if (code <= 79) return 'Snow grains';
+  if (code <= 84) return 'Rain';
+  if (code <= 86) return 'Heavy snow';
+  if (code <= 94) return 'Thunderstorm';
+  return 'Severe thunderstorm';
+}
+</script>
+</body>
+</html>
